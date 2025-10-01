@@ -1,4 +1,6 @@
-import androidx.privacysandbox.tools.core.generator.build
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.test.runTest
 import org.example.*
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
@@ -63,7 +65,7 @@ data class UserSession(val id: String, val username: String)
 class TestUserSessionRepository(
     private val emissions: List<DataState<UserSession>>
 ) : Repository<UserSession> {
-    override fun getStream() = kotlinx.coroutines.flow.flow {
+    override fun getStream() = flow {
         emissions.forEach { emit(it) }
     }
 }
@@ -313,13 +315,13 @@ class GenericsExercisesTest {
 
 
     // Exercise 10: Generic Data Repository with State Management
-    @org.junit.Test
+    @Test
     fun `Exercise 10 - Repository stream emits Loading, Success, Error states correctly`() = runTest {
         val testUserSession = UserSession("testId", "testUser")
         val errorMessage = "Network error"
 
         val emissions = listOf(
-            DataState.Loading(),
+            DataState.Loading,
             DataState.Success(testUserSession),
             DataState.Error(errorMessage)
         )
@@ -335,11 +337,11 @@ class GenericsExercisesTest {
         assertEquals(errorMessage, (collectedStates[2] as DataState.Error).message)
     }
 
-    @org.junit.Test
+    @Test
     fun `Exercise 10 - Repository stream emits only Success on successful fetch`() = runTest {
         val testUserSession = UserSession("successId", "successUser")
         val emissions = listOf(
-            DataState.Loading(),
+            DataState.Loading,
             DataState.Success(testUserSession)
         )
         val repository = TestUserSessionRepository(emissions)
@@ -352,11 +354,11 @@ class GenericsExercisesTest {
         assertEquals(testUserSession, (collectedStates[1] as DataState.Success).data)
     }
 
-    @org.junit.Test
+    @Test
     fun `Exercise 10 - Repository stream emits only Loading and Error on failed fetch`() = runTest {
         val errorMessage = "API limit exceeded"
         val emissions = listOf(
-            DataState.Loading(),
+            DataState.Loading,
             DataState.Error(errorMessage)
         )
         val repository = TestUserSessionRepository(emissions)
@@ -388,7 +390,7 @@ class GenericsExercisesTest {
         assertTrue(config.enableLogging)
     }
 
-    @org.junit.Test
+    @Test
     fun `Exercise 11 - ConfigurationBuilder creates valid Configuration with default optional field`() {
         val config = ConfigurationBuilder()
             .withBaseUrl("http://localhost:8080")
