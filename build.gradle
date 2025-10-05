@@ -16,6 +16,7 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.0") // Use latest stable
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.0")
     testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2"
+    implementation "org.jetbrains.kotlin:kotlin-reflect:2.1.0"
 }
 
 test {

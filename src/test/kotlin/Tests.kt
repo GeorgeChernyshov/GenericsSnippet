@@ -1,5 +1,6 @@
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.test.runTest
 import org.example.*
 import org.junit.jupiter.api.AfterEach
@@ -421,4 +422,245 @@ class GenericsExercisesTest {
 //            .withBaseUrl("https://api.example.com")
 //            .build()
 //    }
+
+    @Test
+    fun `basic select from clause generates correct SQL`() {
+        val sql = query {
+            select(Users.name, Users.age)
+                .from(Users)
+        }.build()
+
+        // Normalize spacing for comparison
+        val expected = "SELECT name, age FROM Users".replace(Regex("\\s+"), " ").trim()
+        val actual = sql.replace(Regex("\\s+"), " ").trim()
+        assertEquals(expected, actual)
+    }
+
+    @Test
+    fun `select with single column generates correct SQL`() {
+        val sql = query {
+            select(Users.id)
+                .from(Users)
+        }.build()
+
+        val expected = "SELECT id FROM Users".replace(Regex("\\s+"), " ").trim()
+        val actual = sql.replace(Regex("\\s+"), " ").trim()
+        assertEquals(expected, actual)
+    }
+
+    @Test
+    fun `select from where with eq operator generates correct SQL`() {
+        val sql = query {
+            select(Users.name)
+                .from(Users)
+                .where { Users.id eq 100 }
+        }.build()
+
+        val expected = "SELECT name FROM Users WHERE id = 100".replace(Regex("\\s+"), " ").trim()
+        val actual = sql.replace(Regex("\\s+"), " ").trim()
+        assertEquals(expected, actual)
+    }
+
+    @Test
+    fun `where with string eq operator generates correct SQL with quotes`() {
+        val sql = query {
+            select(Users.name)
+                .from(Users)
+                .where { Users.name eq "Alice" }
+        }.build()
+
+        val expected = "SELECT name FROM Users WHERE name = 'Alice'".replace(Regex("\\s+"), " ").trim()
+        val actual = sql.replace(Regex("\\s+"), " ").trim()
+        assertEquals(expected, actual)
+    }
+
+    @Test
+    fun `where with gt and lt operators generates correct SQL`() {
+        val sql1 = query {
+            select(Users.name)
+                .from(Users)
+                .where { Users.age gt 25 }
+        }.build()
+        val expected1 = "SELECT name FROM Users WHERE age > 25".replace(Regex("\\s+"), " ").trim()
+        assertEquals(expected1, sql1.replace(Regex("\\s+"), " ").trim())
+
+        val sql2 = query {
+            select(Products.productId)
+                .from(Products)
+                .where { Products.price lt 99.99 }
+        }.build()
+        val expected2 = "SELECT product_id FROM Products WHERE price < 99.99".replace(Regex("\\s+"), " ").trim()
+        assertEquals(expected2, sql2.replace(Regex("\\s+"), " ").trim())
+    }
+
+    @Test
+    fun `where with and operator generates correct SQL`() {
+        val sql = query {
+            select(Users.name)
+                .from(Users)
+                .where { Users.age gt 18 and (Users.age lt 65) }
+        }.build()
+
+        val expected = "SELECT name FROM Users WHERE age > 18 AND age < 65".replace(Regex("\\s+"), " ").trim()
+        val actual = sql.replace(Regex("\\s+"), " ").trim()
+        assertEquals(expected, actual)
+    }
+
+    @Test
+    fun `where with or operator generates correct SQL`() {
+        val sql = query {
+            select(Users.name)
+                .from(Users)
+                .where { Users.name eq "Alice" or (Users.name eq "Bob") }
+        }.build()
+
+        val expected = "SELECT name FROM Users WHERE name = 'Alice' OR name = 'Bob'".replace(Regex("\\s+"), " ").trim()
+        val actual = sql.replace(Regex("\\s+"), " ").trim()
+        assertEquals(expected, actual)
+    }
+
+    @Test
+    fun `where with combined and or generates correct SQL with parentheses`() {
+        val sql = query {
+            select(Users.name)
+                .from(Users)
+                .where { Users.age gt 25 and (Users.name eq "Alice" or (Users.name eq "Bob")) }
+        }.build()
+
+        val expected = "SELECT name FROM Users WHERE age > 25 AND (name = 'Alice' OR name = 'Bob')".replace(Regex("\\s+"), " ").trim()
+        val actual = sql.replace(Regex("\\s+"), " ").trim()
+        assertEquals(expected, actual)
+    }
+
+    @Test
+    fun `where with in operator for int list generates correct SQL`() {
+        val sql = query {
+            select(Users.name)
+                .from(Users)
+                .where { Users.id `in` listOf(1, 2, 3) }
+        }.build()
+
+        val expected = "SELECT name FROM Users WHERE id IN (1, 2, 3)".replace(Regex("\\s+"), " ").trim()
+        val actual = sql.replace(Regex("\\s+"), " ").trim()
+        assertEquals(expected, actual)
+    }
+
+    @Test
+    fun `where with in operator for string list generates correct SQL`() {
+        val sql = query {
+            select(Users.name)
+                .from(Users)
+                .where { Users.name `in` listOf("Alice", "Bob") }
+        }.build()
+
+        val expected = "SELECT name FROM Users WHERE name IN ('Alice', 'Bob')".replace(Regex("\\s+"), " ").trim()
+        val actual = sql.replace(Regex("\\s+"), " ").trim()
+        assertEquals(expected, actual)
+    }
+
+    @Test
+    fun `query for products table generates correct SQL`() {
+        val sql = query {
+            select(Products.productId, Products.price)
+                .from(Products)
+                .where { Products.price gt 50.0 and (Products.stock lt 10) }
+        }.build()
+
+        val expected = "SELECT product_id, price FROM Products WHERE price > 50.0 AND stock_count < 10".replace(Regex("\\s+"), " ").trim()
+        val actual = sql.replace(Regex("\\s+"), " ").trim()
+        assertEquals(expected, actual)
+    }
+
+    // --- COMPILE-TIME ERROR TEST CASES (UNCOMMENT AND VERIFY MANUALLY) ---
+    // These tests are designed to *not compile* if your type-state builder
+    // and generic constraints are correctly implemented.
+    // Uncomment them one by one in your IDE and observe the compile errors.
+
+     @Test
+     fun `build fails if from clause is missing`() {
+         query {
+             select(Users.name)
+//              build() // This line should produce a compile-time error
+         }
+     }
+
+     @Test
+     fun `build fails if select clause is missing`() {
+         query {
+             from(Users)
+//              build() // This line should produce a compile-time error
+         }
+     }
+
+     @Test
+     fun `select fails if called twice`() {
+         query {
+             select(Users.name)
+//                 .select(Users.age) // This line should produce a compile-time error
+                 .from(Users)
+         }.build()
+     }
+
+     @Test
+     fun `from fails if called twice`() {
+         query {
+             select(Users.name)
+                 .from(Users)
+//                 .from(Products) // This line should produce a compile-time error
+         }.build()
+     }
+
+     @Test
+     fun `where fails if called twice`() {
+         query {
+             select(Users.name)
+                 .from(Users)
+                 .where { Users.age gt 18 }
+//                 .where { Users.id eq 1 }
+         }.build()
+     }
+
+     @Test
+     fun `where type mismatch with eq operator fails to compile`() {
+         query {
+             select(Users.name)
+                 .from(Users)
+//                 .where { Users.age eq "not an int" } // This line should produce a compile-time error
+         }.build()
+     }
+
+     @Test
+     fun `where type mismatch with gt operator fails to compile`() {
+         query {
+             select(Users.name)
+                 .from(Users)
+//                 .where { Users.name gt 10 } // This line should produce a compile-time error
+         }.build()
+     }
+
+     @Test
+     fun `where type mismatch with in operator fails to compile`() {
+         query {
+             select(Users.name)
+                 .from(Users)
+//                 .where { Users.age `in` listOf("a", "b") } // This line should produce a compile-time error
+         }.build()
+     }
+
+     @Test
+     fun `selecting column from wrong table fails to compile`() {
+//         query {
+//             select(Products.productId) // This line should produce a compile-time error
+//                 .from(Users)
+//         }.build()
+     }
+
+     @Test
+     fun `where with column from wrong table fails to compile`() {
+         query {
+             select(Users.name)
+                 .from(Users)
+//                 .where { Products.price lt 100.0 } // This line should produce a compile-time error
+         }.build()
+     }
 }
